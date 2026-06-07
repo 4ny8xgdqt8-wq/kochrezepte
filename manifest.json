@@ -9,12 +9,12 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "logo.png",
+      "src": "logo_Rezept.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "logo.png",
+      "src": "logo_Rezept.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

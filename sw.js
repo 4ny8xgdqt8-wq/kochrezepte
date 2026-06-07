@@ -1,10 +1,10 @@
-const VERSION = '1.1';
+const VERSION = '1.2';
 const CACHE_NAME = 'rezepte-' + VERSION;
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './logo.png'
+  './logo_Rezept.png'
 ];
 
 self.addEventListener('install', (event) => {
