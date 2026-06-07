@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Rezeptbuch</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#e53935">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Rezeptbuch">
+    <link rel="apple-touch-icon" href="logo.png">
+
+    <style>
+        :root {
+            --primary-color: #e53935; /* Ein kräftiges Rot */
+            --bg-color: #121212;      /* Sehr dunkles Grau/Schwarz */
+            --text-color: #f5f5f5;    /* Fast Weiß für gute Lesbarkeit */
+            --nav-bg: #1e1e1e;        /* Etwas helleres Schwarz für die Nav */
+            --border-color: #333;     /* Dunkle Trennlinien */
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            /* Weicher Hintergrundverlauf für den Glow */
+            background: linear-gradient(to bottom, rgba(229, 57, 53, 0.98) 0%, rgba(229, 57, 53, 0.7) 60%, transparent 100%);
+            backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+            -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+            /* Kompakteres Padding für einen schmaleren Header */
+            padding: calc(env(safe-area-inset-top) + 8px) 16px 15px 16px;
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            margin: 0 -16px 10px -16px;
+            -webkit-backface-visibility: hidden;
+            transform: translateZ(0);
+            width: 100vw;
+            
+            /* Weicher Übergang direkt in die Transparenz */
+            mask-image: linear-gradient(to bottom, black 0%, black 65%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 0%, black 65%, transparent 100%);
+        }
+
+        .header-side { display: flex; align-items: center; flex: 0; }
+        .header-side.right { justify-content: flex-end; }
+        .logo-img { height: 30px; width: auto; object-fit: contain; opacity: 0.9; filter: drop-shadow(0 0 5px rgba(255,255,255,0.2)); }
+        
+        .title-stack { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .main-title { 
+            font-weight: 900; font-size: 18px; line-height: 1; letter-spacing: -0.5px; 
+            color: white;
+            text-transform: uppercase; 
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+        }
+        .sub-title { 
+            color: #8e8e93; 
+            font-size: 9px; font-weight: 700; 
+            margin-top: 2px; 
+            text-transform: uppercase; 
+            letter-spacing: 1.5px; 
+        }
+
+        #content {
+            flex: 1;
+            overflow-y: scroll;
+            -webkit-overflow-scrolling: touch; /* Flüssiges Scrollen auf iOS */
+            padding: 1rem;
+            padding-bottom: 5rem; /* Platz für die Tab-Bar */
+            will-change: transform;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+            contain: content; /* Performance: Isoliert das Rendering */
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Vorbereitung für schnelle Listen-Performance */
+        .recipe-card {
+            content-visibility: auto;
+            contain-intrinsic-size: 100px;
+            background: var(--nav-bg);
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        h2 {
+            color: var(--primary-color);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: var(--nav-bg);
+            display: flex;
+            justify-content: space-around;
+            border-top: 1px solid var(--border-color);
+            padding-bottom: env(safe-area-inset-bottom);
+            z-index: 10;
+        }
+
+        .tab-item {
+            flex: 1;
+            padding: 0.7rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #777;
+            cursor: pointer;
+            transition: color 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .tab-item.active {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .icon {
+            font-size: 1.4rem;
+            margin-bottom: 2px;
+        }
+
+        /* Splash Screen Styles */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+
+        #splash-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        #splash-screen img {
+            width: 180px;
+            height: 180px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        #splash-screen h1 {
+            color: var(--primary-color);
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        #splash-screen .version {
+            color: #555;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+
+        /* Cinematic Form Styles */
+        .recipe-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding-top: 10px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-left: 4px;
+        }
+
+        .form-control {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px;
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            background: rgba(229, 57, 53, 0.05);
+            box-shadow: 0 0 15px rgba(229, 57, 53, 0.2);
+        }
+
+        textarea.form-control {
+            resize: none;
+            min-height: 200px;
+        }
+
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23e53935' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px;
+        }
+
+        .btn-submit {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(229, 57, 53, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-submit:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(229, 57, 53, 0.2);
+        }
+
+        /* Validierungs-Highlighting */
+        .form-control.highlight-field, 
+        .ingredients-list.highlight-field {
+            border: 2px solid #4caf50 !important; /* Rahmen explizit setzen */
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.4) !important;
+            background: rgba(76, 175, 80, 0.05) !important;
+            border-radius: 12px;
+            padding: 10px; /* Padding für den Container */
+        }
+
+        /* Ersteller Auswahl mit Avatar */
+        .author-select-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .author-avatar-preview {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid var(--primary-color);
+            object-fit: cover;
+            background: var(--nav-bg);
+            transition: opacity 0.3s ease;
+        }
+
+        /* Dynamische Zutaten-Styles */
+        .ingredients-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ingredient-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .amount-input { flex: 0 0 85px; } /* Feste Breite für Mengen (z.B. "500g") */
+        .name-input { flex: 1; }         /* Zutat nimmt den restlichen Platz ein */
+
+        .btn-remove {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            color: #666;
+            border-radius: 10px;
+            width: 44px;
+            height: 44px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s;
+        }
+
+        .btn-remove:hover { border-color: var(--primary-color); color: var(--primary-color); }
+
+        .btn-add {
+            background: transparent;
+            border: 1px dashed var(--primary-color);
+            color: var(--primary-color);
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            margin-top: 5px;
+        }
+
+        /* Custom App Modal Styles */
+        #custom-modal-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px);
+            display: none; justify-content: center; align-items: center; z-index: 10000;
+        }
+        .custom-modal {
+            background: var(--nav-bg);
+            border: 2px solid var(--primary-color);
+            border-radius: 24px;
+            width: 85%; max-width: 350px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(229, 57, 53, 0.4);
+        }
+        .modal-shake {
+            animation: modalShake 0.4s ease-in-out;
+        }
+        @keyframes modalShake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .custom-modal h3 {
+            color: var(--primary-color);
+            margin: 0 0 15px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .custom-modal p {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #ccc;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .btn-modal-close {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 35px;
+            border-radius: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(229, 57, 53, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Ladebildschirm -->
+<div id="splash-screen">
+    <img src="logo.png" alt="Logo">
+    <h1>Rezeptbuch</h1>
+    <div id="app-version" class="version">Version ...</div>
+</div>
+
+<header>
+    <div class="header-side"><img src="logo.png" class="logo-img"></div>
+    <div class="title-stack">
+        <div class="main-title">Rezeptbuch</div>
+        <div class="sub-title" id="header-sub-title">Meine Sammlung</div>
+    </div>
+    <div class="header-side right"><img src="logo.png" class="logo-img"></div>
+</header>
+
+<div id="content">
+    <div id="rezepte" class="tab-content active">
+        <h2>Meine Rezepte</h2>
+        <p>Hier werden deine gespeicherten Rezepte gelistet...</p>
+    </div>
+
+    <div id="neu" class="tab-content">
+        <form id="recipe-form" class="recipe-form" novalidate>
+            <div class="form-group">
+                <label>Ersteller</label>
+                <div class="author-select-wrapper">
+                    <img id="author-avatar" src="logo.png" class="author-avatar-preview" alt="Avatar">
+                    <select id="recipe-author" class="form-control" required style="flex: 1;">
+                        <option value="" disabled selected>Lade Ersteller...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Titel</label>
+                <input type="text" id="recipe-title" class="form-control" placeholder="z.B. Classic Smash Burger" required>
+            </div>
+
+            <div class="form-group">
+                <label>Zeit (Minuten)</label>
+                <input type="number" id="recipe-time" class="form-control" placeholder="z.B. 45">
+            </div>
+
+            <div class="form-group">
+                <label>Personenanzahl</label>
+                <input type="number" id="recipe-servings" class="form-control" placeholder="z.B. 4" min="1">
+            </div>
+
+            <div class="form-group">
+                <label>Art</label>
+                <select id="recipe-type" class="form-control" required>
+                    <option value="" disabled selected>Lade Kategorien...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Zutaten</label>
+                <div id="ingredients-container" class="ingredients-list">
+                    <div class="ingredient-row">
+                        <input type="text" class="form-control amount-input" placeholder="Menge">
+                        <input type="text" class="form-control name-input" placeholder="Zutat" required>
+                        <button type="button" class="btn-remove" onclick="this.parentElement.remove()">✕</button>
+                    </div>
+                </div>
+                <button type="button" class="btn-add" id="add-ingredient">➕ Zutat hinzufügen</button>
+            </div>
+
+            <div class="form-group">
+                <label>Zubereitung</label>
+                <textarea id="recipe-instructions" class="form-control" placeholder="Schritt für Schritt erklären..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Zusätzliche Hinweise (optional)</label>
+                <textarea id="recipe-notes" class="form-control" placeholder="Tipps, Beilagen, etc."></textarea>
+            </div>
+
+            <button type="submit" class="btn-submit">Speichern</button>
+        </form>
+    </div>
+
+    <div id="rechner" class="tab-content">
+        <h2>Zutaten-Rechner</h2>
+        <p>Berechne die Mengen basierend auf der Personenzahl...</p>
+    </div>
+
+    <div id="einkauf" class="tab-content">
+        <h2>Einkaufszettel</h2>
+        <p>Deine gesammelten Zutaten für den nächsten Einkauf...</p>
+    </div>
+</div>
+
+<nav>
+    <div class="tab-item active" onclick="switchTab('rezepte', this)">
+        <span class="icon">📖</span>
+        <span>Rezepte</span>
+    </div>
+    <div class="tab-item" onclick="switchTab('neu', this)">
+        <span class="icon">➕</span>
+        <span>Neu</span>
+    </div>
+    <div class="tab-item" onclick="switchTab('rechner', this)">
+        <span class="icon">⚖️</span>
+        <span>Rechner</span>
+    </div>
+    <div class="tab-item" onclick="switchTab('einkauf', this)">
+        <span class="icon">🛒</span>
+        <span>Einkauf</span>
+    </div>
+</nav>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, enableIndexedDbPersistence, doc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyClVsS3PogAkCQOPEkS9GiokqipeYchC80",
+        authDomain: "rezepte-281bb.firebaseapp.com",
+        projectId: "rezepte-281bb",
+        storageBucket: "rezepte-281bb.firebasestorage.app",
+        messagingSenderId: "377558052632",
+        appId: "1:377558052632:web:9e5fb946dadf3e0640786d"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // Offline-Persistence aktivieren für maximale Schnelligkeit
+    enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code == 'failed-precondition') {
+            console.warn("Persistence failed: Multiple tabs open");
+        } else if (err.code == 'unimplemented') {
+            console.warn("Persistence not supported by browser");
+        }
+    });
+
+    console.log("Firebase & Offline-Modus bereit.");
+
+    // Ersteller dynamisch laden
+    async function loadAuthors() {
+        console.log("Versuche Ersteller-Daten zu laden...");
+        try {
+            const docRef = doc(db, "data_rezepte", "Ersteller");
+            const docSnap = await getDoc(docRef);
+
+            const select = document.getElementById('recipe-author');
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                console.log("Dokument-Daten empfangen:", data);
+                const names = data.names;
+                select.innerHTML = ''; // Vorherigen Text löschen
+                if (Array.isArray(names)) {
+                    select.innerHTML += '<option value="" disabled selected>Wähle Ersteller...</option>';
+                    names.forEach((name) => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        select.appendChild(option);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">Fehler: Feld "names" fehlt</option>';
+                }
+            } else {
+                console.error("Dokument 'data_rezepte/Ersteller' wurde nicht gefunden!");
+                document.getElementById('recipe-author').innerHTML = '<option value="Admin">Admin (Standard)</option>';
+            }
+        } catch (error) {
+            console.error("Detaillierter Fehler beim Laden:", error.code, error.message);
+            if (error.code === 'permission-denied') {
+                document.getElementById('recipe-author').innerHTML = '<option value="">Zugriff verweigert (Rules prüfen)</option>';
+            } else {
+                document.getElementById('recipe-author').innerHTML = '<option value="Admin">Admin (Fallback)</option>';
+            }
+        }
+    }
+
+    // Kategorien (Art) dynamisch laden
+    async function loadCategories() {
+        console.log("Versuche 'Art' Dokument zu laden...");
+        try {
+            const docRef = doc(db, "data_rezepte", "Art");
+            const docSnap = await getDoc(docRef);
+            const select = document.getElementById('recipe-type');
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                console.log("Daten vom 'Art' Dokument:", data);
+                const names = data.typ; // Hier wurde 'names' zu 'typ' geändert
+                select.innerHTML = '';
+                if (Array.isArray(names)) {
+                    select.innerHTML += '<option value="" disabled selected>Wähle Art...</option>';
+                    names.forEach((name) => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        select.appendChild(option);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">Fehler: Feld "typ" fehlt in Art</option>';
+                }
+            } else {
+                console.error("Dokument 'data_rezepte/Art' nicht gefunden!");
+                select.innerHTML = '<option value="">Dokument "Art" fehlt</option>';
+            }
+        } catch (error) {
+            console.error("Detaillierter Fehler beim Laden der Kategorien:", error.code, error.message);
+            document.getElementById('recipe-type').innerHTML = '<option value="">Ladefehler (Rules?)</option>';
+        }
+    }
+
+    // Erst anmelden, dann Daten laden (wie in der Billard-App)
+    signInAnonymously(auth).then(() => {
+        console.log("Anonym angemeldet.");
+        loadAuthors();
+        loadCategories();
+    }).catch((error) => {
+        console.error("Login Fehler:", error);
+    });
+
+    // Avatar Update
+    document.getElementById('recipe-author').addEventListener('change', (e) => {
+        const name = e.target.value;
+        const avatarImg = document.getElementById('author-avatar');
+        avatarImg.src = `avatars/${name}.webp`;
+        avatarImg.onerror = () => { avatarImg.src = 'logo.png'; };
+    });
+
+    // Formular-Submit Handling
+    document.getElementById('recipe-form').addEventListener('submit', async (e) => {
+        e.preventDefault(); // Verhindert Reload sofort
+        
+        const submitBtn = e.target.querySelector('.btn-submit');
+        
+        // Vorherige Markierungen entfernen
+        document.querySelectorAll('.highlight-field').forEach(el => el.classList.remove('highlight-field'));
+
+        const missingFields = [];
+        const checkField = (id, label) => {
+            const el = document.getElementById(id);
+            if (!el || !el.value || el.value.trim() === "") {
+                missingFields.push(label);
+                if(el) el.classList.add('highlight-field');
+                return false;
+            }
+            return true;
+        };
+
+        checkField('recipe-author', 'Ersteller');
+        checkField('recipe-title', 'Titel');
+        checkField('recipe-time', 'Zeit');
+        checkField('recipe-servings', 'Personenanzahl');
+        checkField('recipe-type', 'Art');
+        checkField('recipe-instructions', 'Zubereitung');
+
+        const ingredientRows = document.querySelectorAll('.ingredient-row');
+        const hasValidIngredient = Array.from(ingredientRows).some(row => row.querySelector('.name-input').value.trim() !== "");
+        if (!hasValidIngredient) {
+            missingFields.push('Mindestens eine Zutat');
+            document.getElementById('ingredients-container').classList.add('highlight-field');
+        }
+
+        if (missingFields.length > 0) {
+            const msg = "Bitte fülle die markierten Bereiche aus:\n\n• " + missingFields.join('\n• ');
+            window.showAppModal("Angaben fehlen", msg);
+            return false;
+        }
+
+        // Speichervorgang starten
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Speichere...";
+
+        const ingredients = Array.from(ingredientRows).map(row => ({
+            amount: row.querySelector('.amount-input').value,
+            name: row.querySelector('.name-input').value
+        })).filter(item => item.name !== "");
+
+        const recipeData = {
+            author: document.getElementById('recipe-author').value,
+            title: document.getElementById('recipe-title').value,
+            time: document.getElementById('recipe-time').value,
+            servings: document.getElementById('recipe-servings').value,
+            type: document.getElementById('recipe-type').value,
+            ingredients: ingredients,
+            instructions: document.getElementById('recipe-instructions').value,
+            notes: document.getElementById('recipe-notes').value,
+            createdAt: serverTimestamp()
+        };
+
+        try {
+            await addDoc(collection(db, "rezepte"), recipeData);
+            window.showAppModal("Erfolg", "Dein Rezept wurde sicher verstaut!");
+            document.getElementById('recipe-form').reset();
+            // Zurück zum Rezepte Tab
+            const rezepteTab = document.querySelector('.tab-item'); // Das erste Icon
+            if(typeof window.switchTab === 'function') {
+                window.switchTab('rezepte', rezepteTab);
+            }
+        } catch (error) {
+            console.error("Fehler beim Speichern: ", error);
+            window.showAppModal("Fehler", "Da ging etwas schief: " + error.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Rezept Speichern";
+        }
+    });
+</script>
+
+<script>
+    // Dynamische Zeilen hinzufügen (Standard-Script ist okay hier)
+    document.getElementById('add-ingredient').addEventListener('click', () => {
+        const container = document.getElementById('ingredients-container');
+        const row = document.createElement('div');
+        row.className = 'ingredient-row';
+        row.innerHTML = `
+            <input type="text" class="form-control amount-input" placeholder="Menge">
+            <input type="text" class="form-control name-input" placeholder="Zutat" required>
+            <button type="button" class="btn-remove" onclick="this.parentElement.remove()">✕</button>
+        `;
+        container.appendChild(row);
+    });
+</script>
+
+<script src="app.js"></script>
+<script>
+    function switchTab(tabId, el) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-item').forEach(i => i.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        el.classList.add('active');
+
+        // Dynamische Untertitel-Anpassung (wie in der Billard-App)
+        const subTitles = {
+            'rezepte': 'Meine Sammlung',
+            'neu': 'Rezept hinzufügen',
+            'rechner': 'Mengen planen',
+            'einkauf': 'Markt-Liste'
+        };
+        document.getElementById('header-sub-title').textContent = subTitles[tabId] || 'Rezeptbuch';
+    }
+
+    // Version dynamisch aus sw.js auslesen
+    fetch('sw.js?t=' + Date.now()) // Cache-Busting, um die frischeste Datei zu lesen
+        .then(response => {
+            if (!response.ok) throw new Error('Offline');
+            return response.text();
+        })
+        .then(text => {
+            // Flexiblerer Regex, der Leerzeichen um das Gleichheitszeichen erlaubt
+            const match = text.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
+            if (match && match[1]) {
+                document.getElementById('app-version').textContent = 'Version ' + match[1];
+            }
+        }).catch(err => {
+            console.log("Konnte Version nicht laden, nutze Standard.");
+            document.getElementById('app-version').textContent = 'Version 1.0';
+        });
+
+    // Splash Screen nach dem Laden ausblenden
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            document.getElementById('splash-screen').classList.add('hidden');
+        }, 2000); // 2 Sekunden anzeigen
+    });
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+    }
+
+    // App-eigenes Modal Steuerung
+    window.showAppModal = function(title, text) {
+        const container = document.getElementById('custom-modal-container');
+        const modal = container.querySelector('.custom-modal');
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-text').innerText = text;
+        
+        container.style.display = 'flex';
+        modal.classList.add('modal-shake');
+        
+        // Animation nach Ablauf entfernen, damit sie beim nächsten Mal wieder triggert
+        setTimeout(() => modal.classList.remove('modal-shake'), 500);
+    };
+
+    function closeAppModal() {
+        document.getElementById('custom-modal-container').style.display = 'none';
+    }
+</script>
+
+<!-- Custom Modal Markup -->
+<div id="custom-modal-container" onclick="closeAppModal()">
+    <div class="custom-modal" onclick="event.stopPropagation()">
+        <h3 id="modal-title">Titel</h3>
+        <p id="modal-text">Nachricht...</p>
+        <button class="btn-modal-close" onclick="closeAppModal()">Alles klar</button>
+    </div>
+</div>
+
+</body>
+</html>
