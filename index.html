@@ -54,10 +54,10 @@
             /* Kompakteres Padding für einen schmaleren Header */
             padding: calc(env(safe-area-inset-top) + 8px) 16px 15px 16px;
             display: flex; align-items: center; justify-content: center; gap: 12px;
-            margin: 0 -16px 10px -16px;
+            margin: 0 0 10px 0;
             -webkit-backface-visibility: hidden;
             transform: translateZ(0);
-            width: 100vw;
+            width: 100%;
             
             /* Weicher Übergang direkt in die Transparenz */
             mask-image: linear-gradient(to bottom, black 0%, black 65%, transparent 100%);
@@ -258,8 +258,8 @@
         }
 
         .tab-bar { 
-            position: absolute; 
-            bottom: calc(env(safe-area-inset-bottom) + 10px); 
+            position: fixed; 
+            bottom: calc(env(safe-area-inset-bottom) + 15px); 
             left: 12px; 
             right: 12px; 
             background: rgba(20, 20, 22, 0.75); 
