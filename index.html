@@ -611,22 +611,29 @@
             z-index: 11000;
             display: none;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Flüssiges Scrollen und Layer-Fix für iOS */
             padding-bottom: 40px; /* Standard-Padding, da kein fester Button mehr */
         }
 
         .detail-header-image {
-            width: 100% !important;
+            width: 100%;
             height: 250px;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: linear-gradient(to bottom, transparent, var(--bg-color)), url('logo_Rezept.png');
+            background-color: var(--bg-color);
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             display: block;
             position: relative;
-            transform: translateZ(0); /* Fix für Verschwinden bei langem Scrollen */
-            -webkit-transform: translateZ(0);
+            z-index: 1;
+        }
+
+        .detail-header-image::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, transparent, var(--bg-color));
+            z-index: 2;
+            pointer-events: none;
         }
 
         .btn-detail-back {
@@ -835,6 +842,10 @@
             z-index: 13000;
         }
         .spinner {
+            /* Ensure spinner is centered within its flex container */
+            display: flex;
+            justify-content: center;
+            align-items: center;
             width: 50px;
             height: 50px;
             border: 5px solid rgba(255, 255, 255, 0.1);
@@ -908,6 +919,17 @@
             to { transform: translateX(-50%) scale(1); opacity: 1; }
         }
     </style>
+    <style>
+        /* Update Confirmation Modal Container Styles */
+        #confirm-modal-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px);
+            display: none; /* Hidden by default */
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
+            z-index: 15000; /* Ensure it's on top */
+        }
+    </style>
 </head>
 <body>
 
@@ -919,12 +941,12 @@
 </div>
 
 <header>
-    <div class="header-side"><img src="logo_Rezept.png" class="logo-img"></div>
+    <div class="header-side"><img src="logo_Rezept.png" class="logo-img" style="cursor: pointer;" onclick="window.forceUpdate()"></div>
     <div class="title-stack">
         <div class="main-title">Look & Cook</div>
         <div class="sub-title" id="header-sub-title">Rezepte</div>
     </div>
-    <div class="header-side right"><img src="logo_Rezept.png" class="logo-img"></div>
+    <div class="header-side right"><img src="logo_Rezept.png" class="logo-img" style="cursor: pointer;" onclick="window.forceUpdate()"></div>
 </header>
 
 <div id="content">
@@ -1333,7 +1355,7 @@
         const primaryArt = Array.isArray(data.Art) ? data.Art[0] : data.Art;
         const headerImg = overlay.querySelector('.detail-header-image');
         const bgUrl = primaryArt ? `image/${primaryArt}.webp` : 'logo_Rezept.png';
-        headerImg.style.backgroundImage = `linear-gradient(to bottom, transparent, var(--bg-color)), url('${bgUrl}'), url('logo_Rezept.png')`;
+        headerImg.style.backgroundImage = `url('${bgUrl}'), url('logo_Rezept.png')`;
 
         // Titel & Meta
         document.getElementById('detail-title').textContent = data.Titel || 'Unbenannt';
@@ -1913,6 +1935,38 @@
         if (textEl) textEl.textContent = text;
         overlay.style.display = show ? 'flex' : 'none';
     };
+
+    window.forceUpdate = () => {
+        document.getElementById('confirm-modal-container').style.display = 'flex';
+    };
+
+    window.closeConfirmModal = () => {
+        document.getElementById('confirm-modal-container').style.display = 'none';
+    };
+
+    window.doForceUpdate = async () => {
+        window.closeConfirmModal();
+        window.showLoading(true, "Update wird geladen...");
+        
+        try {
+            // 1. Alle Caches löschen
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(key => caches.delete(key)));
+            }
+            // 2. Service Worker deinstallieren
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map(r => r.unregister()));
+            }
+        } catch (error) {
+            console.error("Bereinigung fehlgeschlagen:", error);
+        }
+
+        // 3. Seite hart neu laden (erfolgt jetzt garantiert)
+        const url = window.location.href.split('?')[0];
+        window.location.replace(url + '?u=' + Date.now());
+    };
 </script>
 
 <!-- Custom Modal Markup -->
@@ -1974,6 +2028,18 @@
 <div id="loading-overlay">
     <div class="spinner"></div>
     <div class="loading-text">Bitte warten...</div>
+</div>
+
+<!-- Update Confirmation Modal -->
+<div id="confirm-modal-container" onclick="window.closeConfirmModal()">
+    <div class="custom-modal" onclick="event.stopPropagation()">
+        <h3>Update suchen</h3>
+        <p>App neu laden, um nach Updates zu suchen? Der lokale Cache wird geleert.</p>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button class="btn-modal-close" style="flex: 1; background: rgba(255,255,255,0.1); color: white;" onclick="window.closeConfirmModal()">Abbrechen</button>
+            <button class="btn-modal-close" style="flex: 1;" onclick="window.doForceUpdate()">Neu laden</button>
+        </div>
+    </div>
 </div>
 
 </body>
