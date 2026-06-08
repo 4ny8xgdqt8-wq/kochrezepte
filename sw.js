@@ -1,4 +1,4 @@
-const VERSION = '1.8.2';
+const VERSION = '1.9';
 const CACHE_NAME = 'rezepte-' + VERSION;
 const ASSETS = [
   './',
