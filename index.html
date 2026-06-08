@@ -211,19 +211,27 @@
             -webkit-backdrop-filter: blur(12px);
         }
 
-        .recipe-card::after {
-            content: '';
+        .recipe-card-bg {
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            /* Cinematischer Glow-Effekt in der Farbe der ART */
-            background: radial-gradient(circle at 0% 0%, var(--accent-color, var(--primary-color)), transparent 80%);
-            opacity: 0.15;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+            object-position: center left; /* Bild etwas mehr zentrieren */
+            opacity: 0.6; /* Stärker sichtbar */
+            filter: brightness(0.7); /* Leicht abdunkeln für besseren Textkontrast */
+            -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 90%); /* Bild verläuft weiter nach rechts */
+            mask-image: linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 90%);
+            z-index: 0;
             pointer-events: none;
         }
 
+        .recipe-card-avatar, .recipe-card-info, .recipe-card > span {
+            position: relative;
+            z-index: 2;
+        }
+
         .recipe-card:active {
-            transform: scale(0.96);
-            background: rgba(255, 255, 255, 0.08);
+            transform: scale(0.97); /* Etwas weniger stark skalieren */
+            background: rgba(255, 255, 255, 0.05); /* Leichterer Hintergrund beim Drücken */
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.6);
         }
 
@@ -239,38 +247,38 @@
         #cart-list-container .recipe-card.checked h3 { color: #fff; }
 
         .recipe-card-info { flex: 1; }
-        .recipe-card-info h3 { margin: 0 0 6px 0; font-size: 1.2rem; color: #fff; font-weight: 900; letter-spacing: -0.5px; }
+        .recipe-card-info h3 { margin: 0 0 6px 0; font-size: 1.2rem; color: #fff; font-weight: 900; letter-spacing: -0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         
-        .recipe-card-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; color: #aaa; font-weight: 600; }
+        .recipe-card-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; color: #ccc; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
         .recipe-card-tag { 
-            background: rgba(229, 57, 53, 0.15);
+            background: rgba(76, 175, 80, 0.4); /* Kräftigeres Grün für bessere Sichtbarkeit */
             padding: 2px 8px;
             border-radius: 6px;
-            border: 1px solid rgba(229, 57, 53, 0.2);
-            color: var(--accent-color, var(--primary-color));
+            border: 1px solid rgba(76, 175, 80, 0.55);
+            color: #4caf50; /* Kräftiges Grün für bessere Lesbarkeit */
             text-transform: uppercase; 
             letter-spacing: 0.5px;
             font-size: 0.65rem;
         }
         .new-tag {
             position: relative; /* Für Animation */
-            background: #4caf50; /* Ein frisches Grün */
+            background: #ff9800; /* Auffälliges Orange */
             color: white;
             padding: 2px 8px;
             border-radius: 6px;
             font-size: 0.65rem;
             font-weight: 900;
             text-transform: uppercase;
-            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5); /* Stärkerer Schatten */
+            box-shadow: 0 0 15px rgba(255, 152, 0, 0.5); /* Orangefarbener Glow */
             margin-left: 10px;
             vertical-align: middle;
             display: inline-block;
             animation: pulse-new-tag 2s infinite ease-in-out; /* Puls-Animation */
         }
         @keyframes pulse-new-tag {
-            0% { box-shadow: 0 0 15px rgba(76, 175, 80, 0.5); }
-            50% { box-shadow: 0 0 25px rgba(76, 175, 80, 0.8); }
-            100% { box-shadow: 0 0 15px rgba(76, 175, 80, 0.5); }
+            0% { box-shadow: 0 0 15px rgba(255, 152, 0, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(255, 152, 0, 0.8); }
+            100% { box-shadow: 0 0 15px rgba(255, 152, 0, 0.5); }
         }
         .subgroup-tag {
             background: rgba(255, 255, 255, 0.05);
@@ -1355,22 +1363,9 @@
             return;
         }
 
-        const typeColors = {
-            'Grillen': '#ff5722', 'BBQ': '#d32f2f', 'Smoker': '#4e342e', 'Dutch Oven': '#263238', 
-            'Dutch': '#263238', 'Plancha': '#ff7043', 'Steak': '#b71c1c', 'Burger': '#ffc107', 
-            'Fisch': '#0288d1', 'Beilagen': '#8bc34a', 'Salat': '#4caf50', 'Backen': '#ff9800',
-            'Brot': '#8d6e63', 'Saucen & Rubs': '#795548', 'Dessert': '#e91e63', 
-            'Vegetarisch': '#cddc39', 'Vegan': '#1b5e20', 'Getränk': '#00bcd4', 
-            'Vorspeise': '#00bcd4', 'Hauptspeise': '#e53935', 'Snack': '#9c27b0',
-            'Dips': '#009688'
-        };
-
         recipes.forEach((data) => {
-            const primaryArt = Array.isArray(data.Art) ? data.Art[0] : data.Art;
-            const accentColor = typeColors[primaryArt] || '#e53935';
             const card = document.createElement('div');
             card.className = 'recipe-card';
-            card.style.setProperty('--accent-color', accentColor);
             card.onclick = () => window.showRecipeDetails(data);
             
             const artTags = Array.isArray(data.Art) 
@@ -1389,17 +1384,22 @@
             const newBadge = isToday ? `<span class="new-tag">NEW</span>` : '';
             const linkIcon = data.isLink ? `<span style="margin-left: 8px; font-size: 0.9rem; vertical-align: middle; opacity: 0.8;">🔗</span>` : '';
             
-            const timeInfo = data.isLink ? '' : `<span style="display:flex; align-items:center; gap:3px;">⏱ ${data.Zeit || '--'} Min.</span>`;
-            const servingsInfo = data.isLink ? '' : `<span style="display:flex; align-items:center; gap:3px;">👥 ${data.Personenanzahl || '--'}</span>`;
-            const linkTag = data.isLink ? `<span class="recipe-card-tag" style="background: rgba(3, 169, 244, 0.15); color: #03a9f4; border-color: rgba(3, 169, 244, 0.2);">Link</span>` : '';
+            const artArray = Array.isArray(data.Art) ? data.Art : (data.Art ? [data.Art] : []);
+            const artArrayJson = JSON.stringify(artArray).replace(/"/g, '&quot;');
+            const initialImg = artArray.length > 0 ? `image/${artArray[0]}.webp` : 'logo_Rezept.png';
+            
+            const timeInfo = data.isLink ? '' : `<span style="display:flex; align-items:center; gap:3px;"><span style="color: #64b5f6;">⏲️</span> ${data.Zeit || '--'} Min.</span>`;
+            const servingsInfo = data.isLink ? '' : `<span style="display:flex; align-items:center; gap:3px;"><span style="color: #64b5f6;">👤</span> ${data.Personenanzahl || '--'}</span>`;
+            const linkTag = data.isLink ? `<span class="recipe-card-tag" style="background: rgba(3, 169, 244, 0.4); color: #03a9f4; border-color: rgba(3, 169, 244, 0.55);">Website</span>` : '';
 
             card.innerHTML = `
+                <img src="${initialImg}" class="recipe-card-bg" onerror="window.tryNextBg(this, ${artArrayJson}, 1)">
                 <img src="avatars/${data.Ersteller}.webp" class="recipe-card-avatar" onerror="this.src='logo_Rezept.png'" alt="Avatar">
                 <div class="recipe-card-info">
                     <h3>${data.Titel || 'Unbenannt'}${newBadge}${linkIcon}</h3>
                     <div class="recipe-card-meta">
                         ${artTags}${linkTag}
-                        <span style="display:flex; align-items:center; gap:3px;">📅 ${dateStr}</span>
+                        <span style="display:flex; align-items:center; gap:3px;"><span style="color: #64b5f6;">🗓️</span> ${dateStr}</span>
                         ${timeInfo}
                         ${servingsInfo}
                     </div>
@@ -1497,6 +1497,17 @@
 
     // Such-Logik
     document.getElementById('recipe-search').addEventListener('input', filterAndRender);
+
+    window.tryNextBg = (img, artArray, idx) => {
+        if (idx < artArray.length) {
+            const nextArt = artArray[idx];
+            img.onerror = () => window.tryNextBg(img, artArray, idx + 1);
+            img.src = `image/${nextArt}.webp`;
+        } else {
+            img.onerror = null;
+            img.src = 'logo_Rezept.png';
+        }
+    };
 
     let currentDetailData = null;
     let currentCalculatedIngredients = [];
