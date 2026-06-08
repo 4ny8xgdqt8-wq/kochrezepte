@@ -1,4 +1,4 @@
-const VERSION = '1.7.2';
+const VERSION = '1.7.3';
 const CACHE_NAME = 'rezepte-' + VERSION;
 const ASSETS = [
   './',
@@ -8,11 +8,23 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting(); // Zwingt den neuen SW, sofort aktiv zu werden
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
     })
   );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
+      );
+    })
+  );
+  self.clients.claim(); // Übernimmt sofort die Kontrolle
 });
 
 self.addEventListener('fetch', (event) => {
