@@ -657,9 +657,10 @@
         .detail-header-image-container {
             width: 100vw; /* Ensure it takes full viewport width */
             height: calc(env(safe-area-inset-top) + 75px);
-            position: relative; /* For absolute positioning of children */
+            position: sticky;
+            top: 0;
             overflow: hidden; /* Hide parts of image that go beyond height */
-            z-index: 1;
+            z-index: 100;
             background-color: var(--bg-color); /* Fallback background color */
         }
 
@@ -683,7 +684,7 @@
         }
 
         .btn-detail-back {
-            position: fixed; 
+            position: absolute; 
             top: calc(env(safe-area-inset-top) + 15px); 
             right: 15px; /* Auf die rechte Seite für bessere Daumen-Erreichbarkeit */
             background: rgba(20, 20, 22, 0.8); 
@@ -692,12 +693,12 @@
             border: 1px solid rgba(255,255,255,0.2);
             color: white; width: 44px; height: 44px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
-            z-index: 12000; /* Höherer Index, damit es immer über dem Content bleibt */
+            z-index: 110; 
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         }
 
         .btn-detail-print {
-            position: fixed; 
+            position: absolute; 
             top: calc(env(safe-area-inset-top) + 15px); 
             right: 69px; /* Abstand: 15px Rand + 44px Close-Button + 10px Gap */
             background: rgba(20, 20, 22, 0.8); 
@@ -706,7 +707,7 @@
             border: 1px solid rgba(255,255,255,0.2);
             color: white; width: 44px; height: 44px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
-            z-index: 12000;
+            z-index: 110;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         }
 
