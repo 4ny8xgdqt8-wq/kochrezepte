@@ -131,6 +131,25 @@
             opacity: 0.5;
         }
 
+        /* Sort Dropdown Styles */
+        .sort-select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 10px 15px;
+            color: #8e8e93;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            outline: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 14px;
+        }
+
         /* Filter Chips Styles */
         .filter-chips {
             display: flex;
@@ -232,6 +251,26 @@
             text-transform: uppercase; 
             letter-spacing: 0.5px;
             font-size: 0.65rem;
+        }
+        .new-tag {
+            position: relative; /* Für Animation */
+            background: #4caf50; /* Ein frisches Grün */
+            color: white;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5); /* Stärkerer Schatten */
+            margin-left: 10px;
+            vertical-align: middle;
+            display: inline-block;
+            animation: pulse-new-tag 2s infinite ease-in-out; /* Puls-Animation */
+        }
+        @keyframes pulse-new-tag {
+            0% { box-shadow: 0 0 15px rgba(76, 175, 80, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(76, 175, 80, 0.8); }
+            100% { box-shadow: 0 0 15px rgba(76, 175, 80, 0.5); }
         }
         .subgroup-tag {
             background: rgba(255, 255, 255, 0.05);
@@ -893,6 +932,35 @@
             box-shadow: 0 4px 12px rgba(229, 57, 53, 0.3);
         }
 
+        /* Toggle Switch Styles */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255,255,255,0.1);
+            transition: .4s;
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 2px; bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #4caf50; box-shadow: 0 0 12px rgba(76, 175, 80, 0.6); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
         /* Chip Badge Styles */
         .chip-badge {
             position: absolute;
@@ -955,6 +1023,13 @@
             <span class="search-icon">🔍</span>
             <input type="text" id="recipe-search" class="search-input" placeholder="Rezepte suchen...">
         </div>
+        <select id="recipe-sort" class="sort-select" onchange="window.filterAndRender()">
+            <option value="newest">📅 Neueste zuerst</option>
+            <option value="oldest">⏳ Älteste zuerst</option>
+            <option value="alpha">🔤 Alphabetisch (A-Z)</option>
+            <option value="time-asc">⏱ Zeit (kurz zuerst)</option>
+            <option value="servings-asc">👥 Personen (wenig zuerst)</option>
+        </select>
         <div id="filter-container" class="filter-chips"></div>
         <div id="recipe-list-container" class="recipe-list">
             <p style="text-align:center; color: #555; margin-top: 40px;">Suche nach Leckereien...</p>
@@ -979,6 +1054,25 @@
             </div>
 
             <div class="form-group">
+                <label>Kategorien (Mehrfachauswahl)</label>
+                <div id="recipe-type-chips" class="form-chip-container"></div>
+            </div>
+
+            <div class="form-group" style="flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 10px;">
+                <label class="switch">
+                    <input type="checkbox" id="recipe-is-link">
+                    <span class="slider"></span>
+                </label>
+                <label style="margin: 0; font-size: 0.85rem; color: #fff;">Rezept als Link</label>
+            </div>
+
+            <div class="form-group" id="link-input-group" style="display: none;">
+                <label>Link zum Rezept</label>
+                <input type="url" id="recipe-link" class="form-control" placeholder="https://www.beispiel.de/rezept">
+            </div>
+
+            <div id="classic-recipe-fields">
+            <div class="form-group">
                 <label>Zeit (Minuten)</label>
                 <input type="number" id="recipe-time" class="form-control" placeholder="z.B. 45">
             </div>
@@ -986,11 +1080,6 @@
             <div class="form-group">
                 <label>Personenanzahl</label>
                 <input type="number" id="recipe-servings" class="form-control" placeholder="z.B. 4" min="1">
-            </div>
-
-            <div class="form-group">
-                <label>Kategorien (Mehrfachauswahl)</label>
-                <div id="recipe-type-chips" class="form-chip-container"></div>
             </div>
 
             <div class="form-group">
@@ -1039,6 +1128,7 @@
             <div class="form-group">
                 <label>Zusätzliche Hinweise (optional)</label>
                 <textarea id="recipe-notes" class="form-control" placeholder="Tipps, Beilagen, etc."></textarea>
+            </div>
             </div>
 
             <button type="submit" class="btn-submit">Speichern</button>
@@ -1264,14 +1354,31 @@
                 ? data.Art.map(a => `<span class="recipe-card-tag">${a}</span>`).join('') 
                 : `<span class="recipe-card-tag">${data.Art || 'Divers'}</span>`;
             
+            let dateStr = '--.--.----';
+            let isToday = false;
+            if (data.createdAt) {
+                const dateObj = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+                dateStr = dateObj.toLocaleDateString('de-DE');
+                
+                const today = new Date();
+                isToday = dateObj.toLocaleDateString('de-DE') === today.toLocaleDateString('de-DE');
+            }
+            const newBadge = isToday ? `<span class="new-tag">NEW</span>` : '';
+            const linkIcon = data.isLink ? `<span style="margin-left: 8px; font-size: 0.9rem; vertical-align: middle; opacity: 0.8;">🔗</span>` : '';
+            
+            const timeInfo = data.isLink ? '' : `<span style="display:flex; align-items:center; gap:3px;">⏱ ${data.Zeit || '--'} Min.</span>`;
+            const servingsInfo = data.isLink ? '' : `<span style="display:flex; align-items:center; gap:3px;">👥 ${data.Personenanzahl || '--'}</span>`;
+            const linkTag = data.isLink ? `<span class="recipe-card-tag" style="background: rgba(3, 169, 244, 0.15); color: #03a9f4; border-color: rgba(3, 169, 244, 0.2);">Link</span>` : '';
+
             card.innerHTML = `
                 <img src="avatars/${data.Ersteller}.webp" class="recipe-card-avatar" onerror="this.src='logo_Rezept.png'" alt="Avatar">
                 <div class="recipe-card-info">
-                    <h3>${data.Titel || 'Unbenannt'}</h3>
+                    <h3>${data.Titel || 'Unbenannt'}${newBadge}${linkIcon}</h3>
                     <div class="recipe-card-meta">
-                        ${artTags}
-                        <span style="display:flex; align-items:center; gap:3px;">⏱ ${data.Zeit || '--'} Min.</span>
-                        <span style="display:flex; align-items:center; gap:3px;">👥 ${data.Personenanzahl || '--'}</span>
+                        ${artTags}${linkTag}
+                        <span style="display:flex; align-items:center; gap:3px;">📅 ${dateStr}</span>
+                        ${timeInfo}
+                        ${servingsInfo}
                     </div>
                 </div>
                 <span style="font-size: 1.2rem; color: rgba(255,255,255,0.2);">❯</span>
@@ -1292,6 +1399,31 @@
                                     (Array.isArray(r.Untergruppe) ? r.Untergruppe.includes(selectedCategory) : r.Untergruppe === selectedCategory);
             return matchesSearch && matchesCategory;
         });
+
+        // Sortierung anwenden
+        const sortOrder = document.getElementById('recipe-sort').value;
+        // Sortierung im LocalStorage speichern, damit sie beim Neustart erhalten bleibt
+        localStorage.setItem('recipe_sort_order', sortOrder);
+
+        filtered.sort((a, b) => {
+            const getMillis = (date) => (date && date.toMillis) ? date.toMillis() : (date ? new Date(date).getTime() : 0);
+            
+            switch (sortOrder) {
+                case 'newest':
+                    return getMillis(b.createdAt) - getMillis(a.createdAt);
+                case 'oldest':
+                    return getMillis(a.createdAt) - getMillis(b.createdAt);
+                case 'alpha':
+                    return (a.Titel || '').localeCompare(b.Titel || '', 'de');
+                case 'time-asc':
+                    return (parseInt(a.Zeit) || 999) - (parseInt(b.Zeit) || 999);
+                case 'servings-asc':
+                    return (parseInt(a.Personenanzahl) || 999) - (parseInt(b.Personenanzahl) || 999);
+                default:
+                    return 0;
+            }
+        });
+
         renderRecipes(filtered);
     }
     window.filterAndRender = filterAndRender;
@@ -1318,12 +1450,11 @@
                 allRecipes.push({ id: doc.id, ...data });
             });
 
-            // Manuelle Sortierung im Code (neueste oben)
-            allRecipes.sort((a, b) => {
-                const dateA = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : a.createdAt) : 0;
-                const dateB = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : b.createdAt) : 0;
-                return dateB - dateA;
-            });
+            // Gespeicherte Sortierung beim ersten Laden wiederherstellen
+            const savedSort = localStorage.getItem('recipe_sort_order');
+            if (savedSort) {
+                document.getElementById('recipe-sort').value = savedSort;
+            }
 
             filterAndRender();
             
@@ -1361,10 +1492,40 @@
         document.getElementById('detail-title').textContent = data.Titel || 'Unbenannt';
         const artText = Array.isArray(data.Art) ? data.Art.join(', ') : (data.Art || 'Divers');
         const artInfo = artText;
-        document.getElementById('detail-meta-info').textContent = `${artInfo} • ⏱ ${data.Zeit} Min. • 👥 ${data.Personenanzahl} Pers.`;
+        
+        const metaInfo = data.isLink 
+            ? `${artInfo} • 🔗 Externer Link` 
+            : `${artInfo} • ⏱ ${data.Zeit} Min. • 👥 ${data.Personenanzahl} Pers.`;
+        document.getElementById('detail-meta-info').textContent = metaInfo;
         
         // Zutaten
         const ingCont = document.getElementById('detail-ingredients');
+        const stepCont = document.getElementById('detail-steps');
+        const notesCont = document.getElementById('detail-notes');
+        const actionsCont = overlay.querySelector('.detail-actions');
+
+        if (data.isLink) {
+            // Link-Modus: Verstecke Koch-Details und zeige Link-Button
+            ingCont.parentElement.style.display = 'none';
+            stepCont.parentElement.style.display = 'none';
+            actionsCont.innerHTML = `
+                <a href="${data.link}" target="_blank" class="btn-action primary" style="text-decoration: none; width: 100%;">
+                    <span class="action-icon">🌐</span> <span>Rezept im Browser öffnen</span>
+                </a>
+            `;
+        } else {
+            // Klassisch: Zeige alle Sektionen
+            ingCont.parentElement.style.display = 'block';
+            stepCont.parentElement.style.display = 'block';
+            actionsCont.innerHTML = `
+                <div class="btn-action" onclick="openServingsCalculator()">
+                    <span class="action-icon">⚖️</span> <span>Menge berechnen</span>
+                </div>
+                <div class="btn-action primary" onclick="addToCart()">
+                    <span class="action-icon">🛒</span> <span>In den Wagen</span>
+                </div>
+            `;
+
         currentCalculatedIngredients = JSON.parse(JSON.stringify(data.Zutaten || []));
         
         ingCont.innerHTML = currentCalculatedIngredients.map(ing => `
@@ -1375,16 +1536,15 @@
         `).join('');
 
         // Zubereitung
-        const stepCont = document.getElementById('detail-steps');
         stepCont.innerHTML = (data.Zubereitung || []).map((step, i) => `
             <div class="detail-step">
                 <div class="detail-step-num">${i + 1}</div>
                 <div class="detail-step-text">${step}</div>
             </div>
         `).join('');
+        }
 
         // Hinweise
-        const notesCont = document.getElementById('detail-notes');
         if (data['Zusätzliche Hinweise']) {
             notesCont.parentElement.style.display = 'block';
             notesCont.textContent = data['Zusätzliche Hinweise'];
@@ -1610,6 +1770,13 @@
         avatarImg.onerror = () => { avatarImg.src = 'logo_Rezept.png'; };
     });
 
+    // Toggle Link Mode
+    document.getElementById('recipe-is-link').addEventListener('change', (e) => {
+        const isLink = e.target.checked;
+        document.getElementById('link-input-group').style.display = isLink ? 'flex' : 'none';
+        document.getElementById('classic-recipe-fields').style.display = isLink ? 'none' : 'block';
+    });
+
     // Formular-Submit Handling
     document.getElementById('recipe-form').addEventListener('submit', async (e) => {
         e.preventDefault(); // Verhindert Reload sofort
@@ -1632,8 +1799,20 @@
 
         checkField('recipe-author', 'Ersteller');
         checkField('recipe-title', 'Titel');
-        checkField('recipe-time', 'Zeit');
-        checkField('recipe-servings', 'Personenanzahl');
+
+        const isLinkMode = document.getElementById('recipe-is-link').checked;
+
+        if (!isLinkMode) {
+            checkField('recipe-time', 'Zeit');
+            checkField('recipe-servings', 'Personenanzahl');
+        } else {
+            const linkEl = document.getElementById('recipe-link');
+            const linkVal = linkEl.value.trim().toLowerCase();
+            if (linkVal === "" || (!linkVal.includes('http') && !linkVal.includes('www'))) {
+                missingFields.push('Gültiger Link (muss http oder www enthalten)');
+                linkEl.classList.add('highlight-field');
+            }
+        }
 
         const selectedTypes = [...selectedTypesOrder];
         if (selectedTypes.length === 0) {
@@ -1641,18 +1820,20 @@
             document.getElementById('recipe-type-chips').classList.add('highlight-field');
         }
 
-        const ingredientBlocks = document.querySelectorAll('#ingredients-container .ingredient-block');
-        const hasValidIngredient = Array.from(ingredientBlocks).some(block => block.querySelector('.name-input').value.trim() !== "");
-        if (!hasValidIngredient) {
-            missingFields.push('Mindestens eine Zutat');
-            document.getElementById('ingredients-container').classList.add('highlight-field');
-        }
+        if (!isLinkMode) {
+            const ingredientBlocks = document.querySelectorAll('#ingredients-container .ingredient-block');
+            const hasValidIngredient = Array.from(ingredientBlocks).some(block => block.querySelector('.name-input').value.trim() !== "");
+            if (!hasValidIngredient) {
+                missingFields.push('Mindestens eine Zutat');
+                document.getElementById('ingredients-container').classList.add('highlight-field');
+            }
 
-        const instructionBlocks = document.querySelectorAll('#instructions-container .instruction-step');
-        const hasValidInstruction = Array.from(instructionBlocks).some(block => block.querySelector('.instruction-input').value.trim() !== "");
-        if (!hasValidInstruction) {
-            missingFields.push('Zubereitung (mind. 1 Schritt)');
-            document.getElementById('instructions-container').classList.add('highlight-field');
+            const instructionBlocks = document.querySelectorAll('#instructions-container .instruction-step');
+            const hasValidInstruction = Array.from(instructionBlocks).some(block => block.querySelector('.instruction-input').value.trim() !== "");
+            if (!hasValidInstruction) {
+                missingFields.push('Zubereitung (mind. 1 Schritt)');
+                document.getElementById('instructions-container').classList.add('highlight-field');
+            }
         }
 
         if (missingFields.length > 0) {
@@ -1664,27 +1845,35 @@
         // Speichervorgang starten mit Status-Anzeige
         window.showLoading(true, "Rezept wird gespeichert...");
 
-        const ingredients = Array.from(ingredientBlocks).map(block => ({
-            amount: block.querySelector('.amount-input').value,
-            unit: block.querySelector('.unit-select').value,
-            name: block.querySelector('.name-input').value
-        })).filter(item => item.name !== "");
-
-        const instructions = Array.from(instructionBlocks).map(block => 
-            block.querySelector('.instruction-input').value
-        ).filter(val => val.trim() !== "");
-
-        const recipeData = {
+        let recipeData = {
             Ersteller: document.getElementById('recipe-author').value,
             Titel: document.getElementById('recipe-title').value,
-            Zeit: document.getElementById('recipe-time').value,
-            Personenanzahl: document.getElementById('recipe-servings').value,
             Art: selectedTypes,
-            Zutaten: ingredients,
-            Zubereitung: instructions,
-            'Zusätzliche Hinweise': document.getElementById('recipe-notes').value,
+            isLink: isLinkMode,
             createdAt: serverTimestamp()
         };
+
+        if (isLinkMode) {
+            recipeData.link = document.getElementById('recipe-link').value;
+        } else {
+            const ingredientBlocks = document.querySelectorAll('#ingredients-container .ingredient-block');
+            const ingredients = Array.from(ingredientBlocks).map(block => ({
+                amount: block.querySelector('.amount-input').value,
+                unit: block.querySelector('.unit-select').value,
+                name: block.querySelector('.name-input').value
+            })).filter(item => item.name !== "");
+
+            const instructionBlocks = document.querySelectorAll('#instructions-container .instruction-step');
+            const instructions = Array.from(instructionBlocks).map(block => 
+                block.querySelector('.instruction-input').value
+            ).filter(val => val.trim() !== "");
+
+            recipeData.Zeit = document.getElementById('recipe-time').value;
+            recipeData.Personenanzahl = document.getElementById('recipe-servings').value;
+            recipeData.Zutaten = ingredients;
+            recipeData.Zubereitung = instructions;
+            recipeData['Zusätzliche Hinweise'] = document.getElementById('recipe-notes').value;
+        }
 
         try {
             
@@ -1711,6 +1900,8 @@
             
             // Formular zurücksetzen
             document.getElementById('recipe-form').reset();
+            document.getElementById('link-input-group').style.display = 'none';
+            document.getElementById('classic-recipe-fields').style.display = 'block';
             
             // Avatar-Vorschau zurücksetzen
             document.getElementById('author-avatar').src = 'logo_Rezept.png';
