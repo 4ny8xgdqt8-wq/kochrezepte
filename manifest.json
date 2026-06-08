@@ -1,6 +1,6 @@
 {
-  "name": "Rezeptbuch",
-  "short_name": "Rezepte",
+  "name": "Look & Cook",
+  "short_name": "Look & Cook",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#121212",
