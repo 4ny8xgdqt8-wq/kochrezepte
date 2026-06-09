@@ -1168,7 +1168,8 @@
             </div>
             </div>
 
-            <button type="submit" class="btn-submit">Speichern</button>
+            <button type="submit" class="btn-submit" id="submit-recipe-btn">Speichern</button>
+            <button type="button" class="btn-submit" id="cancel-edit-btn" style="display:none; background: #555; margin-top: 5px;" onclick="window.cancelEdit()">Abbrechen</button>
         </form>
     </div>
 
@@ -1203,7 +1204,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, enableIndexedDbPersistence, doc, getDoc, collection, addDoc, setDoc, serverTimestamp, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, enableIndexedDbPersistence, doc, getDoc, collection, addDoc, setDoc, deleteDoc, serverTimestamp, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
     const firebaseConfig = {
@@ -1219,6 +1220,7 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
+    let editingRecipeId = null; // Speichert die ID des Rezepts, das gerade bearbeitet wird
     let selectedTypesOrder = []; // Speichert die Reihenfolge der Auswahl
 
     // Offline-Persistence aktivieren für maximale Schnelligkeit
@@ -1387,7 +1389,8 @@
                 const today = new Date();
                 isToday = dateObj.toLocaleDateString('de-DE') === today.toLocaleDateString('de-DE');
             }
-            const newBadge = isToday ? `<span class="new-tag">NEW</span>` : '';
+            const badgeText = data.lastAction === 'update' ? 'UPDATE' : 'NEW';
+            const newBadge = isToday ? `<span class="new-tag">${badgeText}</span>` : '';
             const linkIcon = data.isLink ? `<span style="margin-left: 8px; font-size: 0.9rem; vertical-align: middle; opacity: 0.8;">🔗</span>` : '';
             
             const artArray = Array.isArray(data.Art) ? data.Art : (data.Art ? [data.Art] : []);
@@ -1419,10 +1422,13 @@
     function filterAndRender() {
         const term = document.getElementById('recipe-search').value.toLowerCase();
         const filtered = allRecipes.filter(r => {
-            const matchesSearch = (r.Titel && r.Titel.toLowerCase().includes(term)) || 
-                                 (r.Art && r.Art.toLowerCase().includes(term)) ||
-                                 (r.Untergruppe && r.Untergruppe.toLowerCase().includes(term)) ||
-                                 (r.Ersteller && r.Ersteller.toLowerCase().includes(term));
+            const matchesSearch = (r.Titel && String(r.Titel).toLowerCase().includes(term)) || 
+                                 (r.Art && String(r.Art).toLowerCase().includes(term)) ||
+                                 (r.Untergruppe && String(r.Untergruppe).toLowerCase().includes(term)) ||
+                                 (r.Ersteller && String(r.Ersteller).toLowerCase().includes(term)) ||
+                                 (r.Zutaten && r.Zutaten.some(z => z.name && String(z.name).toLowerCase().includes(term))) ||
+                                 (r.Zubereitung && r.Zubereitung.some(s => String(s).toLowerCase().includes(term))) ||
+                                 (r['Zusätzliche Hinweise'] && String(r['Zusätzliche Hinweise']).toLowerCase().includes(term));
             const matchesCategory = selectedCategory === 'Alle' || 
                                     (Array.isArray(r.Art) ? r.Art.includes(selectedCategory) : r.Art === selectedCategory) || 
                                     (Array.isArray(r.Untergruppe) ? r.Untergruppe.includes(selectedCategory) : r.Untergruppe === selectedCategory);
@@ -1513,6 +1519,83 @@
             img.onerror = null;
             img.src = 'logo_Rezept.png';
         }
+    };
+
+    window.editRecipeFromDetail = () => {
+        if (!currentDetailData) return;
+        const data = currentDetailData;
+        editingRecipeId = data.id;
+
+        // Tab wechseln
+        switchTab('neu', document.querySelector('.tab-item[onclick*="neu"]'));
+
+        // Formular füllen
+        document.getElementById('recipe-author').value = data.Ersteller || "";
+        document.getElementById('recipe-author').dispatchEvent(new Event('change')); // Avatar aktualisieren
+        document.getElementById('recipe-title').value = data.Titel || "";
+        
+        // Kategorien (Chips) wiederherstellen
+        selectedTypesOrder = Array.isArray(data.Art) ? [...data.Art] : (data.Art ? [data.Art] : []);
+        document.querySelectorAll('#recipe-type-chips .selectable-chip').forEach(chip => {
+            const name = chip.dataset.name;
+            const idx = selectedTypesOrder.indexOf(name);
+            chip.classList.toggle('selected', idx > -1);
+            
+            let badge = chip.querySelector('.chip-badge');
+            if (idx > -1) {
+                if (!badge) {
+                    badge = document.createElement('div');
+                    badge.className = 'chip-badge';
+                    chip.appendChild(badge);
+                }
+                badge.textContent = idx + 1;
+            } else if (badge) {
+                badge.remove();
+            }
+        });
+
+        // Link-Modus
+        const isLink = !!data.isLink;
+        document.getElementById('recipe-is-link').checked = isLink;
+        document.getElementById('recipe-is-link').dispatchEvent(new Event('change'));
+
+        if (isLink) {
+            document.getElementById('recipe-link').value = data.link || "";
+        } else {
+            document.getElementById('recipe-time').value = data.Zeit || "";
+            document.getElementById('recipe-servings').value = data.Personenanzahl || "";
+            document.getElementById('recipe-notes').value = data['Zusätzliche Hinweise'] || "";
+
+            // Zutaten wiederherstellen
+            const ingContainer = document.getElementById('ingredients-container');
+            ingContainer.innerHTML = '';
+            if (data.Zutaten && data.Zutaten.length > 0) {
+                data.Zutaten.forEach(ing => addIngredientRow(ing.amount, ing.unit, ing.name));
+            } else {
+                addIngredientRow();
+            }
+
+            // Zubereitung wiederherstellen
+            const instContainer = document.getElementById('instructions-container');
+            instContainer.innerHTML = '';
+            if (data.Zubereitung && data.Zubereitung.length > 0) {
+                data.Zubereitung.forEach((step, i) => addInstructionStep(step));
+            } else {
+                addInstructionStep();
+            }
+        }
+
+        // UI anpassen
+        document.getElementById('submit-recipe-btn').textContent = "Änderungen speichern";
+        document.getElementById('cancel-edit-btn').style.display = "block";
+        document.getElementById('header-sub-title').textContent = "Rezept bearbeiten";
+        
+        closeRecipeDetails();
+    };
+
+    window.cancelEdit = () => {
+        resetRecipeForm();
+        switchTab('rezepte', document.querySelector('.tab-item[onclick*="rezepte"]'));
     };
 
     let currentDetailData = null;
@@ -1810,6 +1893,81 @@
     // Initialer Check des Warenkorbs
     updateCartBadge();
 
+    function resetRecipeForm() {
+        editingRecipeId = null;
+        document.getElementById('recipe-form').reset();
+        document.getElementById('submit-recipe-btn').textContent = "Speichern";
+        document.getElementById('cancel-edit-btn').style.display = "none";
+        document.getElementById('link-input-group').style.display = 'none';
+        document.getElementById('classic-recipe-fields').style.display = 'block';
+        document.getElementById('author-avatar').src = 'logo_Rezept.png';
+        
+        document.querySelectorAll('#recipe-type-chips .selectable-chip').forEach(c => {
+            c.classList.remove('selected');
+            const badge = c.querySelector('.chip-badge');
+            if (badge) badge.remove();
+        });
+        selectedTypesOrder = [];
+
+        const container = document.getElementById('ingredients-container');
+        container.innerHTML = '';
+        addIngredientRow();
+
+        const instructionsContainer = document.getElementById('instructions-container');
+        instructionsContainer.innerHTML = '';
+        addInstructionStep();
+    }
+
+    window.addIngredientRow = (amount = '', unit = '', name = '') => {
+        const container = document.getElementById('ingredients-container');
+        const block = document.createElement('div');
+        block.className = 'ingredient-block';
+        block.innerHTML = `
+            <div class="ingredient-row-top">
+                <input type="text" class="form-control amount-input" placeholder="Menge" value="${amount}">
+                <select class="form-control unit-select">
+                    <option value="" ${unit === '' ? 'selected' : ''}>Einheit...</option>
+                    <option value="g" ${unit === 'g' ? 'selected' : ''}>g</option>
+                    <option value="kg" ${unit === 'kg' ? 'selected' : ''}>kg</option>
+                    <option value="ml" ${unit === 'ml' ? 'selected' : ''}>ml</option>
+                    <option value="l" ${unit === 'l' ? 'selected' : ''}>l</option>
+                    <option value="Stk" ${unit === 'Stk' ? 'selected' : ''}>Stk</option>
+                    <option value="EL" ${unit === 'EL' ? 'selected' : ''}>EL</option>
+                    <option value="TL" ${unit === 'TL' ? 'selected' : ''}>TL</option>
+                    <option value="Prise" ${unit === 'Prise' ? 'selected' : ''}>Prise</option>
+                    <option value="Bund" ${unit === 'Bund' ? 'selected' : ''}>Bund</option>
+                    <option value="Zehe" ${unit === 'Zehe' ? 'selected' : ''}>Zehe</option>
+                    <option value="Glas" ${unit === 'Glas' ? 'selected' : ''}>Glas</option>
+                    <option value="Flasche" ${unit === 'Flasche' ? 'selected' : ''}>Flasche</option>
+                    <option value="Würfel" ${unit === 'Würfel' ? 'selected' : ''}>Würfel</option>
+                    <option value="Pck" ${unit === 'Pck' ? 'selected' : ''}>Pck</option>
+                    <option value="Becher" ${unit === 'Becher' ? 'selected' : ''}>Becher</option>
+                    <option value="Scheiben" ${unit === 'Scheiben' ? 'selected' : ''}>Scheiben</option>
+                    <option value="Dose kl." ${unit === 'Dose kl.' ? 'selected' : ''}>Dose kl.</option>
+                    <option value="Dose gr." ${unit === 'Dose gr.' ? 'selected' : ''}>Dose gr.</option>
+                </select>
+                <button type="button" class="btn-remove" onclick="this.closest('.ingredient-block').remove()">✕</button>
+            </div>
+            <input type="text" class="form-control name-input" placeholder="Zutat" required value="${name}">
+        `;
+        container.appendChild(block);
+    };
+
+    window.addInstructionStep = (text = '') => {
+        const container = document.getElementById('instructions-container');
+        const block = document.createElement('div');
+        block.className = 'ingredient-block instruction-step';
+        block.innerHTML = `
+            <div class="ingredient-row-top">
+                <span class="step-number"></span>
+                <button type="button" class="btn-remove" onclick="removeStep(this)">✕</button>
+            </div>
+            <textarea class="form-control instruction-input" placeholder="Schritt beschreiben..." required>${text}</textarea>
+        `;
+        container.appendChild(block);
+        updateStepNumbers();
+    };
+
     // Erst anmelden, dann Daten laden (wie in der Billard-App)
     signInAnonymously(auth).then(() => {
         console.log("Anonym angemeldet.");
@@ -1908,7 +2066,8 @@
             Titel: document.getElementById('recipe-title').value,
             Art: selectedTypes,
             isLink: isLinkMode,
-            createdAt: serverTimestamp()
+            createdAt: serverTimestamp(),
+            lastAction: editingRecipeId ? 'update' : 'new'
         };
 
         if (isLinkMode) {
@@ -1939,6 +2098,12 @@
             // Wir säubern den Titel von Sonderzeichen, damit die ID in Firebase sicher ist
             const sanitizedTitle = recipeData.Titel.trim().replace(/[^\w\s-]/gi, '').replace(/\s+/g, '-');
             const docId = sanitizedTitle || "Unbenannt-" + Date.now();
+
+            // Falls wir bearbeiten und der Titel (und somit die ID) sich geändert hat: altes Dokument löschen
+            if (editingRecipeId && editingRecipeId !== docId) {
+                await deleteDoc(doc(db, "data_rezepte", editingRecipeId));
+            }
+
             await setDoc(doc(db, "data_rezepte", docId), recipeData);
 
             window.showAppModal("Erfolg", "Dein Rezept wurde sicher verstaut!");
@@ -1957,65 +2122,12 @@
             }
             
             // Formular zurücksetzen
-            document.getElementById('recipe-form').reset();
-            document.getElementById('link-input-group').style.display = 'none';
-            document.getElementById('classic-recipe-fields').style.display = 'block';
-            
-            // Avatar-Vorschau zurücksetzen
-            document.getElementById('author-avatar').src = 'logo_Rezept.png';
-            
-            // Chips & Auswahl-Reihenfolge zurücksetzen
-            document.querySelectorAll('#recipe-type-chips .selectable-chip').forEach(c => {
-                c.classList.remove('selected');
-                const badge = c.querySelector('.chip-badge');
-                if (badge) badge.remove();
-            });
-            selectedTypesOrder = [];
+            resetRecipeForm();
 
-            // Dynamische Zutaten-Blöcke komplett zurücksetzen
-            const container = document.getElementById('ingredients-container');
-            container.innerHTML = `
-                <div class="ingredient-block">
-                    <div class="ingredient-row-top">
-                        <input type="text" class="form-control amount-input" placeholder="Menge">
-                        <select class="form-control unit-select">
-                            <option value="" selected>Einheit...</option>
-                            <option value="g">g</option>
-                            <option value="kg">kg</option>
-                            <option value="ml">ml</option>
-                            <option value="l">l</option>
-                            <option value="Stk">Stk</option>
-                            <option value="EL">EL</option>
-                            <option value="TL">TL</option>
-                            <option value="Prise">Prise</option>
-                            <option value="Bund">Bund</option>
-                            <option value="Zehe">Zehe</option>
-                            <option value="Glas">Glas</option>
-                            <option value="Flasche">Flasche</option>
-                            <option value="Würfel">Würfel</option>
-                            <option value="Pck">Pck</option>
-                            <option value="Becher">Becher</option>
-                            <option value="Scheiben">Scheiben</option>
-                            <option value="Dose kl.">Dose kl.</option>
-                            <option value="Dose gr.">Dose gr.</option>
-                        </select>
-                        <button type="button" class="btn-remove" onclick="this.closest('.ingredient-block').remove()">✕</button>
-                    </div>
-                    <input type="text" class="form-control name-input" placeholder="Zutat" required>
-                </div>
-            `;
-
-            // Dynamische Zubereitung zurücksetzen
-            const instructionsContainer = document.getElementById('instructions-container');
-            instructionsContainer.innerHTML = `
-                <div class="ingredient-block instruction-step">
-                    <div class="ingredient-row-top">
-                        <span class="step-number">Schritt 1</span>
-                        <button type="button" class="btn-remove" onclick="removeStep(this)">✕</button>
-                    </div>
-                    <textarea class="form-control instruction-input" placeholder="Schritt beschreiben..." required></textarea>
-                </div>
-            `;
+            // Nach dem Speichern zurück zur Liste
+            setTimeout(() => {
+                switchTab('rezepte', document.querySelector('.tab-item[onclick*="rezepte"]'));
+            }, 1500);
 
         } catch (error) {
             console.error("Fehler beim Speichern: ", error);
@@ -2028,56 +2140,10 @@
 
 <script>
     // Dynamische Zeilen hinzufügen (Standard-Script ist okay hier)
-    document.getElementById('add-ingredient').addEventListener('click', () => {
-        const container = document.getElementById('ingredients-container');
-        const block = document.createElement('div');
-        block.className = 'ingredient-block';
-        block.innerHTML = `
-            <div class="ingredient-row-top">
-                <input type="text" class="form-control amount-input" placeholder="Menge">
-                <select class="form-control unit-select">
-                    <option value="" selected>Einheit...</option>
-                    <option value="g">g</option>
-                    <option value="kg">kg</option>
-                    <option value="ml">ml</option>
-                    <option value="l">l</option>
-                    <option value="Stk">Stk</option>
-                    <option value="EL">EL</option>
-                    <option value="TL">TL</option>
-                    <option value="Prise">Prise</option>
-                    <option value="Bund">Bund</option>
-                    <option value="Zehe">Zehe</option>
-                    <option value="Glas">Glas</option>
-                    <option value="Flasche">Flasche</option>
-                    <option value="Würfel">Würfel</option>
-                    <option value="Pck">Pck</option>
-                    <option value="Becher">Becher</option>
-                    <option value="Scheiben">Scheiben</option>
-                    <option value="Dose kl.">Dose kl.</option>
-                    <option value="Dose gr.">Dose gr.</option>
-                </select>
-                <button type="button" class="btn-remove" onclick="this.closest('.ingredient-block').remove()">✕</button>
-            </div>
-            <input type="text" class="form-control name-input" placeholder="Zutat" required>
-        `;
-        container.appendChild(block);
-    });
+    document.getElementById('add-ingredient').addEventListener('click', () => window.addIngredientRow());
 
     // Dynamische Schritte hinzufügen
-    document.getElementById('add-instruction').addEventListener('click', () => {
-        const container = document.getElementById('instructions-container');
-        const block = document.createElement('div');
-        block.className = 'ingredient-block instruction-step';
-        block.innerHTML = `
-            <div class="ingredient-row-top">
-                <span class="step-number"></span>
-                <button type="button" class="btn-remove" onclick="removeStep(this)">✕</button>
-            </div>
-            <textarea class="form-control instruction-input" placeholder="Schritt beschreiben..." required></textarea>
-        `;
-        container.appendChild(block);
-        updateStepNumbers();
-    });
+    document.getElementById('add-instruction').addEventListener('click', () => window.addInstructionStep());
 
     window.removeStep = function(btn) {
         btn.closest('.ingredient-block').remove();
@@ -2244,6 +2310,7 @@
     <div class="detail-header-image-container">
         <img id="detail-recipe-image" src="logo_Rezept.png" alt="Rezeptbild" class="detail-header-image-actual">
         <div class="detail-header-image-gradient"></div>
+        <button id="btn-detail-edit" class="btn-detail-print" style="right: 123px;" onclick="editRecipeFromDetail()">✏️</button>
         <button class="btn-detail-print" onclick="printRecipe()">📄</button>
         <button class="btn-detail-back" onclick="closeRecipeDetails()">✕</button>
     </div>
