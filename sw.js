@@ -1,4 +1,4 @@
-const VERSION = '2.3';
+const VERSION = '2.4';
 const CACHE_NAME = 'rezepte-' + VERSION;
 const ASSETS = [
   './',
@@ -12,30 +12,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
-    })
-  );
-});
-
-// Klick auf Benachrichtigung verarbeiten
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const targetUrl = event.notification.data?.url || './';
-  
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      const absoluteTarget = new URL(targetUrl, self.location.origin).href;
-      
-      // Prüfen, ob die App bereits in einem Tab offen ist
-      for (let i = 0; i < windowClients.length; i++) {
-        const client = windowClients[i];
-        if (client.url === absoluteTarget && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      // Falls nicht offen, neuen Tab/Fenster öffnen
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
-      }
     })
   );
 });

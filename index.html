@@ -1452,16 +1452,18 @@
                 : `<span class="recipe-card-tag">${data.Art || 'Divers'}</span>`;
             
             let dateStr = '--.--.----';
-            let isToday = false;
+            let isRecent = false;
             if (data.createdAt) {
                 const dateObj = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
                 dateStr = dateObj.toLocaleDateString('de-DE');
                 
                 const today = new Date();
-                isToday = dateObj.toLocaleDateString('de-DE') === today.toLocaleDateString('de-DE');
+                const diffInMs = today - dateObj;
+                const threeDaysInMs = 3 * 24 * 60 * 60 * 1000;
+                isRecent = diffInMs >= 0 && diffInMs <= threeDaysInMs;
             }
             const badgeText = data.lastAction === 'update' ? 'UPDATE' : 'NEW';
-            const newBadge = isToday ? `<span class="new-tag">${badgeText}</span>` : '';
+            const newBadge = isRecent ? `<span class="new-tag">${badgeText}</span>` : '';
             const linkIcon = data.isLink ? `<span style="margin-left: 8px; font-size: 0.9rem; vertical-align: middle; opacity: 0.8;">🔗</span>` : '';
             
             const artArray = Array.isArray(data.Art) ? data.Art : (data.Art ? [data.Art] : []);
@@ -1553,19 +1555,6 @@
                 if (doc.id === "Art" || doc.id === "Ersteller" || !data.Titel) return;
                 updatedRecipesList.push({ id: doc.id, ...data });
             });
-
-            // Lokale Benachrichtigung bei neuen Rezepten (nur nach dem ersten Laden)
-            if (!isInitialLoad) {
-                snapshot.docChanges().forEach((change) => {
-                    if (change.type === "added") {
-                        const recipe = change.doc.data();
-                        if (recipe.Titel) {
-                            sendLocalNotification(`Neues Rezept! 🥘`, `${recipe.Ersteller || 'Jemand'} hat '${recipe.Titel}' hinzugefügt.`);
-                        }
-                    }
-                });
-            }
-
             allRecipes = updatedRecipesList;
             isInitialLoad = false;
 
